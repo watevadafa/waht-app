@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: wellness_user
+      POSTGRES_PASSWORD: wellness_pass
+      POSTGRES_DB: wellness_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wellness_user -d wellness_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  user-service:
+    build: 
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./user-service/app:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - DATABASE_URL=postgresql://wellness_user:wellness_pass@postgres/wellness_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tracking-service:
+    build: 
+      context: ./tracking-service
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./tracking-service/app:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - DATABASE_URL=postgresql://wellness_user:wellness_pass@postgres/wellness_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
